@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
 interface IIngesterGroupManager {
-    
-    struct Group{
+    struct Group {
         bool isAdded;
         uint256 clusterId;
         address[] ingesterAddresses;
@@ -11,12 +10,12 @@ interface IIngesterGroupManager {
         uint256 groupUsernameIndex;
     }
 
-    struct IngesterToGroup{
+    struct IngesterToGroup {
         bool isAdded;
         uint256 groupClusterIngesterIndex;
     }
 
-    struct GroupSlim{
+    struct GroupSlim {
         bool isAdded;
         uint256 clusterId;
         address[] ingesterAddresses;
@@ -28,7 +27,7 @@ interface IIngesterGroupManager {
         uint256 clusterGroupCount;
         uint256 clusterRemainingCapacity;
         uint256 clusterIndex;
-        mapping(address => string[]) ingesterToAssignedGroups; 
+        mapping(address => string[]) ingesterToAssignedGroups;
     }
 
     struct ClusterSlim {
@@ -38,13 +37,29 @@ interface IIngesterGroupManager {
     }
 
     // Events
-    event GroupDistributed(uint256 clusterId, string groupUsername, address ingesterAddress);
+    event GroupDistributed(
+        uint256 clusterId,
+        string groupUsername,
+        address ingesterAddress
+    );
     event GroupAdded(string groupUsername);
     event GroupRemoved(string groupUsername);
-    event GroupRemovedFromIngester(address indexed ingesterAddress, string group);
-    event GroupRemovedFromCluster(uint256 indexed _clusterId, string indexed _groupUsername);
-    event IngesterRemovedFromGroup(address indexed ingesterAddress, string indexed groupId);
-    event IngesterRegisteredGroups(address indexed ingesterAddress, string[] assignedGroups);
+    event GroupRemovedFromIngester(
+        address indexed ingesterAddress,
+        string group
+    );
+    event GroupRemovedFromCluster(
+        uint256 indexed _clusterId,
+        string indexed _groupUsername
+    );
+    event IngesterRemovedFromGroup(
+        address indexed ingesterAddress,
+        string indexed groupId
+    );
+    event IngesterRegisteredGroups(
+        address indexed ingesterAddress,
+        string[] assignedGroups
+    );
     event UnAllocatedGroupsAdded(string[] groups);
     // event IngesterDetailsUpdated(address indexed ingesterAddress, bool verified, string[] assignedGroups);
     // event IngesterAddedToCluster(address indexed ingesterAddress, uint256 indexed clusterId);
@@ -53,13 +68,18 @@ interface IIngesterGroupManager {
     event MaxClusterSizeUpdated(uint256 maxClusterSize);
     event MaxGroupsPerIngesterUpdated(uint256 maxGroupsPerIngester);
 
-
     // Functions
     function addGroup(string calldata groupUsername) external;
+
     function removeGroup(string calldata groupUsername) external;
-    function getGroup(string calldata groupName) external view returns (GroupSlim memory);
+
+    function getGroup(
+        string calldata groupName
+    ) external view returns (GroupSlim memory);
+
     function setMaxClusterSize(uint256 maxClusterSize) external;
+
     function setMaxGroupsPerIngester(uint256 maxGroupsPerIngester) external;
+
     function setMaxIngestersPerGroup(uint256 maxIngestersPerGroup) external;
 }
-

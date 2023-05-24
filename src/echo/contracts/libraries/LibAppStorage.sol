@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
 import "../interfaces/IIngesterRegistration.sol";
 import "../interfaces/IIngesterGroupManager.sol";
 import "../interfaces/IIngesterDataGathering.sol";
-import { LibDiamond } from "./LibDiamond.sol";
+import {LibDiamond} from "./LibDiamond.sol";
 
 struct AppStorage {
     //Registry
@@ -13,10 +13,9 @@ struct AppStorage {
     mapping(address => IIngesterRegistration.Ingester[]) controllerToIngesters;
     address[] ingesterAddresses;
     uint256 ingesterCount;
-
     //Groups & Clusters
     uint256 maxClusterSize;
-    uint256 maxGroupsPerIngester; 
+    uint256 maxGroupsPerIngester;
     uint256 maxIngestersPerGroup;
     mapping(uint => IIngesterGroupManager.Cluster) ingesterClusters;
     uint256[] clusterIds;
@@ -24,30 +23,38 @@ struct AppStorage {
     string[] groupUsernames;
     uint256 groupCount;
     string[] unAllocatedGroups;
-
     //IPFS Storage
     mapping(address => IIngesterDataGathering.IpfsHash) ipfsHashes;
 }
 
 library LibAppStorage {
-
     bytes32 internal constant INGESTER_ROLE = keccak256("INGESTER_ROLE");
     bytes32 internal constant CONTROLLER_ROLE = keccak256("CONTROLLER_ROLE");
-    
+
     event UnAllocatedGroupsAdded(string[] groups);
-    event IngesterRemovedFromGroup(address indexed ingesterAddress, string indexed groupId);
-    event IngesterRegisteredGroups(address indexed ingesterAddress, string[] assignedGroups);
-    event IngesterAddedToCluster(address indexed ingesterAddress, uint256 indexed clusterId);
+    event IngesterRemovedFromGroup(
+        address indexed ingesterAddress,
+        string indexed groupId
+    );
+    event IngesterRegisteredGroups(
+        address indexed ingesterAddress,
+        string[] assignedGroups
+    );
+    event IngesterAddedToCluster(
+        address indexed ingesterAddress,
+        uint256 indexed clusterId
+    );
 
-
-    function appStorage() internal pure returns (AppStorage storage ds) {    
-        assembly { ds.slot := 0 }
+    function appStorage() internal pure returns (AppStorage storage ds) {
+        assembly {
+            ds.slot := 0
+        }
     }
-    
+
     /**
-    * @notice Adds a list of group names to the unallocated groups.
-    * @param groups An array of group names to be added to the unallocated groups.
-    */
+     * @notice Adds a list of group names to the unallocated groups.
+     * @param groups An array of group names to be added to the unallocated groups.
+     */
     function AddToUnAllocateGroups(string[] memory groups) internal {
         AppStorage storage s = appStorage();
 
@@ -60,22 +67,24 @@ library LibAppStorage {
     }
 
     /**
-    * @notice Retrieves the list of unallocated groups.
-    * @return An array of unallocated group usernames.
-    */
-    function getUnallocatedGroups() internal view returns(string[] memory) {
+     * @notice Retrieves the list of unallocated groups.
+     * @return An array of unallocated group usernames.
+     */
+    function getUnallocatedGroups() internal view returns (string[] memory) {
         AppStorage storage s = appStorage();
         return s.unAllocatedGroups;
     }
 
-
     /**
-    * @notice Adds an ingester to a cluster.
-    * @param ingesterAddress The address of the ingester to be added.
-    * @param controllerAddress The address of the controller responsible for the ingester.
-    * @return The ID of the cluster the ingester was added to.
-    */
-    function addIngesterToCluster(address ingesterAddress, address controllerAddress) internal returns(uint256) {
+     * @notice Adds an ingester to a cluster.
+     * @param ingesterAddress The address of the ingester to be added.
+     * @param controllerAddress The address of the controller responsible for the ingester.
+     * @return The ID of the cluster the ingester was added to.
+     */
+    function addIngesterToCluster(
+        address ingesterAddress,
+        address controllerAddress
+    ) internal returns (uint256) {
         AppStorage storage s = appStorage();
 
         uint256 clusterId = 0;
@@ -84,11 +93,19 @@ library LibAppStorage {
         } else {
             clusterId = getAvailableCluster(ingesterAddress, controllerAddress);
         }
-        
+
         s.ingesterClusters[clusterId].ingesterAddresses.push(ingesterAddress);
-        require((s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length) >= s.ingesterClusters[clusterId].clusterGroupCount, "More groups in cluster than cluster constraints");
-        s.ingesterClusters[clusterId].clusterRemainingCapacity = (s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length) - s.ingesterClusters[clusterId].clusterGroupCount;
-       
+        require(
+            (s.maxGroupsPerIngester *
+                s.ingesterClusters[clusterId].ingesterAddresses.length) >=
+                s.ingesterClusters[clusterId].clusterGroupCount,
+            "More groups in cluster than cluster constraints"
+        );
+        s.ingesterClusters[clusterId].clusterRemainingCapacity =
+            (s.maxGroupsPerIngester *
+                s.ingesterClusters[clusterId].ingesterAddresses.length) -
+            s.ingesterClusters[clusterId].clusterGroupCount;
+
         emit IngesterAddedToCluster(ingesterAddress, clusterId);
         return clusterId;
     }
@@ -99,7 +116,10 @@ library LibAppStorage {
      * @param controllerAddress The address of the controller.
      * @return The available cluster ID.
      */
-    function getAvailableCluster(address ingesterAddress, address controllerAddress) internal returns (uint256) {
+    function getAvailableCluster(
+        address ingesterAddress,
+        address controllerAddress
+    ) internal returns (uint256) {
         AppStorage storage s = appStorage();
 
         uint256 availableCluster = 0;
@@ -114,20 +134,43 @@ library LibAppStorage {
 
         //otherwise go through the existing clusters and get the first available one
         for (uint256 i = 0; i < numClusters; i++) {
-            if (s.ingesterClusters[s.clusterIds[i]].ingesterAddresses.length < s.maxClusterSize) {
-                availableCluster = s.clusterIds[i]; 
+            if (
+                s.ingesterClusters[s.clusterIds[i]].ingesterAddresses.length <
+                s.maxClusterSize
+            ) {
+                availableCluster = s.clusterIds[i];
                 foundAvailableCluster = true;
 
                 //If there is Duplication.
                 //Restrict more than one controller wallet owning one ingester per cluster
                 if (s.maxIngestersPerGroup > 1) {
-                    IIngesterRegistration.Ingester[] memory controllerIngesters = s.controllerToIngesters[controllerAddress];
+                    IIngesterRegistration.Ingester[]
+                        memory controllerIngesters = s.controllerToIngesters[
+                            controllerAddress
+                        ];
 
-                    for (uint j = 0; j < s.ingesterClusters[availableCluster].ingesterAddresses.length; j++) {
+                    for (
+                        uint j = 0;
+                        j <
+                        s
+                            .ingesterClusters[availableCluster]
+                            .ingesterAddresses
+                            .length;
+                        j++
+                    ) {
                         for (uint k = 0; k < controllerIngesters.length; k++) {
                             //controller ingester addresses match ingesterAddresses within the cluster and it's not the current ingester we are trying to assign
                             //continue looking for another cluster
-                            if (s.ingesterClusters[availableCluster].ingesterAddresses[j] == controllerIngesters[k].ingesterAddress && s.ingesterClusters[availableCluster].ingesterAddresses[j] != ingesterAddress) {
+                            if (
+                                s
+                                    .ingesterClusters[availableCluster]
+                                    .ingesterAddresses[j] ==
+                                controllerIngesters[k].ingesterAddress &&
+                                s
+                                    .ingesterClusters[availableCluster]
+                                    .ingesterAddresses[j] !=
+                                ingesterAddress
+                            ) {
                                 foundAvailableCluster = false;
                             }
                         }
@@ -151,22 +194,38 @@ library LibAppStorage {
     }
 
     /**
-    * @notice Removes an ingester from a list of groups.
-    * @param clusterId The cluster ID that the ingesterAddress is assigned to.
-    * @param ingesterAddress The address of the ingester to be removed.
-    */
-    function removeIngesterFromGroups(uint256 clusterId, address ingesterAddress) internal {
+     * @notice Removes an ingester from a list of groups.
+     * @param clusterId The cluster ID that the ingesterAddress is assigned to.
+     * @param ingesterAddress The address of the ingester to be removed.
+     */
+    function removeIngesterFromGroups(
+        uint256 clusterId,
+        address ingesterAddress
+    ) internal {
         AppStorage storage s = LibAppStorage.appStorage();
 
-        string[] memory groups = s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress];
+        string[] memory groups = s
+            .ingesterClusters[clusterId]
+            .ingesterToAssignedGroups[ingesterAddress];
         for (uint256 i = 0; i < groups.length; ++i) {
             // These arrays are capped by the s.maxNumberIngesterPerGroup
-            uint256 amountOfIngestersPerGroup = s.groups[groups[i]].ingesterAddresses.length;
+            uint256 amountOfIngestersPerGroup = s
+                .groups[groups[i]]
+                .ingesterAddresses
+                .length;
             for (uint256 j = 0; j < amountOfIngestersPerGroup; j++) {
-                if(s.groups[groups[i]].ingesterAddresses[j] == ingesterAddress ) {
+                if (
+                    s.groups[groups[i]].ingesterAddresses[j] == ingesterAddress
+                ) {
                     //delete ingesterAddress from groups and readjust array length so s.maxNumberIngesterPerGroup check remains truthful
-                    for (uint256 z = j; z < amountOfIngestersPerGroup - 1; ++z) {
-                        s.groups[groups[i]].ingesterAddresses[z] = s.groups[groups[i]].ingesterAddresses[z+1];
+                    for (
+                        uint256 z = j;
+                        z < amountOfIngestersPerGroup - 1;
+                        ++z
+                    ) {
+                        s.groups[groups[i]].ingesterAddresses[z] = s
+                            .groups[groups[i]]
+                            .ingesterAddresses[z + 1];
                     }
                     s.groups[groups[i]].ingesterAddresses.pop();
                     emit IngesterRemovedFromGroup(ingesterAddress, groups[i]);
@@ -177,38 +236,72 @@ library LibAppStorage {
     }
 
     /**
-    * @notice Removes an ingester from a cluster.
-    * @param ingesterAddress The address of the ingester to be removed.
-    * @param clusterId The ID of the cluster the ingester is being removed from.
-    */
-    function removeIngesterFromCluster(address ingesterAddress, uint256 clusterId) internal {
+     * @notice Removes an ingester from a cluster.
+     * @param ingesterAddress The address of the ingester to be removed.
+     * @param clusterId The ID of the cluster the ingester is being removed from.
+     */
+    function removeIngesterFromCluster(
+        address ingesterAddress,
+        uint256 clusterId
+    ) internal {
         AppStorage storage s = LibAppStorage.appStorage();
 
-        uint256 numIngesters = s.ingesterClusters[clusterId].ingesterAddresses.length;
+        uint256 numIngesters = s
+            .ingesterClusters[clusterId]
+            .ingesterAddresses
+            .length;
         uint256 ingesterIndexToRemove = 0;
         for (uint256 i = 0; i < numIngesters; i++) {
-            if (s.ingesterClusters[clusterId].ingesterAddresses[i] == ingesterAddress) {
+            if (
+                s.ingesterClusters[clusterId].ingesterAddresses[i] ==
+                ingesterAddress
+            ) {
                 ingesterIndexToRemove = i;
-                //Re-adjust the ingesterAddresses array 
+                //Re-adjust the ingesterAddresses array
                 if (i != numIngesters - 1) {
-                    address ingesterAddressToMove = s.ingesterClusters[clusterId].ingesterAddresses[numIngesters - 1];
-                    s.ingesterClusters[clusterId].ingesterAddresses[i] = ingesterAddressToMove;
+                    address ingesterAddressToMove = s
+                        .ingesterClusters[clusterId]
+                        .ingesterAddresses[numIngesters - 1];
+                    s.ingesterClusters[clusterId].ingesterAddresses[
+                        i
+                    ] = ingesterAddressToMove;
                 }
                 s.ingesterClusters[clusterId].ingesterAddresses.pop();
 
-                if (s.ingesterClusters[clusterId].ingesterAddresses.length == 0) {
+                if (
+                    s.ingesterClusters[clusterId].ingesterAddresses.length == 0
+                ) {
                     removeCluster(clusterId);
                     delete s.ingesterClusters[clusterId];
                 } else {
                     //remove all assignedGroups from ingester within the cluster
-                    s.ingesterClusters[clusterId].clusterGroupCount -= s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress].length;
-                    s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress] = new string[](0);
+                    s.ingesterClusters[clusterId].clusterGroupCount -= s
+                        .ingesterClusters[clusterId]
+                        .ingesterToAssignedGroups[ingesterAddress]
+                        .length;
+                    s.ingesterClusters[clusterId].ingesterToAssignedGroups[
+                        ingesterAddress
+                    ] = new string[](0);
 
                     //re-calculate cluster remaining capacity
-                    require((s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length) >= s.ingesterClusters[clusterId].clusterGroupCount, "More groups in cluster than cluster constraints");
-                    s.ingesterClusters[clusterId].clusterRemainingCapacity = (s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length) - s.ingesterClusters[clusterId].clusterGroupCount;
+                    require(
+                        (s.maxGroupsPerIngester *
+                            s
+                                .ingesterClusters[clusterId]
+                                .ingesterAddresses
+                                .length) >=
+                            s.ingesterClusters[clusterId].clusterGroupCount,
+                        "More groups in cluster than cluster constraints"
+                    );
+                    s.ingesterClusters[clusterId].clusterRemainingCapacity =
+                        (s.maxGroupsPerIngester *
+                            s
+                                .ingesterClusters[clusterId]
+                                .ingesterAddresses
+                                .length) -
+                        s.ingesterClusters[clusterId].clusterGroupCount;
                     break;
-                } 
+                }
             }
         }
     }
@@ -230,4 +323,3 @@ library LibAppStorage {
         s.clusterIds.pop();
     }
 }
-

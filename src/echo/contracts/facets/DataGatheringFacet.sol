@@ -1,14 +1,17 @@
-
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
 import "./AccessControlFacet.sol";
 import "./CommonFunctionsFacet.sol";
 import "../interfaces/IIngesterDataGathering.sol";
-import { AppStorage } from "../libraries/LibAppStorage.sol";
+import {AppStorage} from "../libraries/LibAppStorage.sol";
 
-contract DataGatheringFacet is AccessControlFacet, CommonFunctionsFacet, IIngesterDataGathering {
-     /**
+contract DataGatheringFacet is
+    AccessControlFacet,
+    CommonFunctionsFacet,
+    IIngesterDataGathering
+{
+    /**
      * @notice Adds IPFS hashes for a registered ingester.
      * @dev Can only be called by a registered ingester.
      * @param usersHash The IPFS hash of the users data.
@@ -22,17 +25,12 @@ contract DataGatheringFacet is AccessControlFacet, CommonFunctionsFacet, IIngest
     ) external onlyRegisteredIngester {
         address ingesterAddress = msg.sender;
         IpfsHash memory ipfsHashUsers = IpfsHash(
-                usersHash,
-                chatsHash,
-                messagesHash
-                );
-        s.ipfsHashes[ingesterAddress] = ipfsHashUsers;
-        emit IpfsHashAdded(
-            ingesterAddress,
             usersHash,
             chatsHash,
             messagesHash
         );
+        s.ipfsHashes[ingesterAddress] = ipfsHashUsers;
+        emit IpfsHashAdded(ingesterAddress, usersHash, chatsHash, messagesHash);
     }
 
     /**
