@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import {LibAppStorage, AppStorage} from "../libraries/LibAppStorage.sol";
-import "../interfaces/IIngesterGroupManager.sol";
-import "./AccessControlFacet.sol";
-import "./CommonFunctionsFacet.sol";
+import {LibAppStorageTest, AppStorageTest} from "../libraries/LibAppStorageUpgradeTest.sol";
+import "../../../src/echo/contracts/interfaces/IIngesterGroupManager.sol";
+import "./AccessControlFacetTest.sol";
+import "./CommonFunctionsFacetTest.sol";
 
-contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngesterGroupManager {
-    /**
-     * @notice Adds a new group to the system and distributes it among the clusters.
-     * @param groupUsername The username of the group to be added.
-     */
+contract GroupManagerFacetTest is AccessControlFacetTest, CommonFunctionsFacetTest, IIngesterGroupManager {
     function addGroup(string calldata groupUsername) external onlyAdmin {
         require(!s.groups[groupUsername].isAdded, "Group already exists.");
         s.groupUsernames.push(groupUsername);
@@ -21,10 +17,6 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         emit IIngesterGroupManager.GroupAdded(groupUsername);
     }
 
-    /**
-     * @dev Distributes a group to the most available capacity cluster.
-     * @param groupUsername The group username to distribute.
-     */
     function distributeGroup(string memory groupUsername) internal {
         uint256 clusterId = getMostCapacityCluster();
         require(
@@ -57,10 +49,8 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
                 if (numOfAssignedGroups < maxGroupsPerIngester && numIngestersPerGroup < s.maxIngestersPerGroup) {
                     //assign ingester to group storage
                     s.groups[groupUsername].ingesterAddresses.push(currentIngesterAddress);
-
                     //add group to cluster for the respective ingester
                     s.ingesterClusters[clusterId].ingesterToAssignedGroups[currentIngesterAddress].push(groupUsername);
-
                     //keep track of where it is stored so it is easy to remove
                     s.groups[groupUsername].ingesterToGroup[currentIngesterAddress] = IngesterToGroup(
                         true, s.ingesterClusters[clusterId].ingesterToAssignedGroups[currentIngesterAddress].length - 1
@@ -132,39 +122,36 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         }
     }
 
-    /**
-     * @notice Distributes a group to an ingester within a specified cluster.
-     * @param groupUsername The group username to be distributed.
-     * @param clusterId The cluster ID where the ingester resides.
-     * @param ingesterAddress The address of the ingester the group will be assigned to.
-     */
     function distributeGroupToIngester(string memory groupUsername, uint256 clusterId, address ingesterAddress)
         internal
     {
-        //assign ingester to group storage
-        s.groups[groupUsername].ingesterAddresses.push(ingesterAddress);
-        //add group to cluster for the respective ingester
-        s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress].push(groupUsername);
-        //keep track of where it is stored so it is easy to remove
-        s.groups[groupUsername].ingesterToGroup[ingesterAddress] =
-            IngesterToGroup(true, s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress].length - 1);
-        ++s.ingesterClusters[clusterId].clusterGroupCount;
+        uint256 numOfAssignedGroups = s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress].length;
+        uint256 numIngestersPerGroup = s.groups[groupUsername].ingesterAddresses.length;
 
-        // Re-calculate clusterRemainingCapacity
-        require(
-            (s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length)
-                >= s.ingesterClusters[clusterId].clusterGroupCount,
-            "More groups in cluster than cluster constraints"
-        );
-        s.ingesterClusters[clusterId].clusterRemainingCapacity = (
-            s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length
-        ) - s.ingesterClusters[clusterId].clusterGroupCount;
-        emit IIngesterGroupManager.GroupDistributed(clusterId, groupUsername, ingesterAddress);
+        if (numOfAssignedGroups <= s.maxGroupsPerIngester && numIngestersPerGroup < s.maxIngestersPerGroup) {
+            //assign ingester to group storage
+            s.groups[groupUsername].ingesterAddresses.push(ingesterAddress);
+            //add group to cluster for the respective ingester
+            s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress].push(groupUsername);
+            //keep track of where it is stored so it is easy to remove
+            s.groups[groupUsername].ingesterToGroup[ingesterAddress] = IngesterToGroup(
+                true, s.ingesterClusters[clusterId].ingesterToAssignedGroups[ingesterAddress].length - 1
+            );
+            ++s.ingesterClusters[clusterId].clusterGroupCount;
+
+            // Re-calculate clusterRemainingCapacity
+            require(
+                (s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length)
+                    >= s.ingesterClusters[clusterId].clusterGroupCount,
+                "More groups in cluster than cluster constraints"
+            );
+            s.ingesterClusters[clusterId].clusterRemainingCapacity = (
+                s.maxGroupsPerIngester * s.ingesterClusters[clusterId].ingesterAddresses.length
+            ) - s.ingesterClusters[clusterId].clusterGroupCount;
+            emit IIngesterGroupManager.GroupDistributed(clusterId, groupUsername, ingesterAddress);
+        }
     }
 
-    /**
-     * @notice Distributes unallocated groups to the cluster with the most available capacity.
-     */
     function distributeUnallocatedGroups() external {
         uint256 mostCapacityClusterId = getMostCapacityCluster();
         uint256 clusterCapacity = s.ingesterClusters[mostCapacityClusterId].clusterRemainingCapacity;
@@ -174,6 +161,7 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
             uint256 allocatableAmount = amountOfGroups - clusterCapacity;
             while (s.unAllocatedGroups.length > allocatableAmount) {
                 uint256 i = s.unAllocatedGroups.length - 1;
+
                 distributeGroupsToCluster(s.unAllocatedGroups[i], mostCapacityClusterId);
                 emit IIngesterGroupManager.RemoveUnallocatedGroup(s.unAllocatedGroups[i]);
                 s.unAllocatedGroups.pop();
@@ -243,11 +231,8 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         }
     }
 
-    /**
-     * @dev Returns the ID of the cluster with the most capacity available.
-     * @return The ID of the cluster with the most capacity.
-     */
     function getMostCapacityCluster() internal view returns (uint256) {
+        //need to calculate this for an adaptive metric depending on group size
         uint256 mostAvailableGroups = 0;
         uint256 mostAvailableClusterId = 0;
         for (uint256 i = 0; i < s.clusterIds.length; i++) {
@@ -259,10 +244,6 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         return mostAvailableClusterId;
     }
 
-    /**
-     * @notice Removes a group from the system.
-     * @param groupUsername The username of the group to be removed.
-     */
     function removeGroup(string calldata groupUsername) external onlyAdmin {
         require(s.groups[groupUsername].isAdded, "Group does not exist.");
         address[] memory ingesterAddresses = s.groups[groupUsername].ingesterAddresses;
@@ -273,12 +254,6 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         emit IIngesterGroupManager.GroupRemoved(groupUsername);
     }
 
-    /**
-     * @dev Removes a group from the specified cluster and its associated ingester addresses.
-     * @param clusterId The cluster ID to remove the group from.
-     * @param groupUsername The group username to remove.
-     * @param ingesterAddresses The array of ingester addresses associated with the group.
-     */
     function removeGroupFromCluster(
         uint256 clusterId,
         string calldata groupUsername,
@@ -297,8 +272,6 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
                     - 1];
                 s.ingesterClusters[clusterId].ingesterToAssignedGroups[currentIngesterAddress][groupClusterIndex] =
                     groupToMove;
-                s.groups[groupToMove].ingesterToGroup[currentIngesterAddress].groupClusterIngesterIndex =
-                    groupClusterIndex;
             }
             s.ingesterClusters[clusterId].ingesterToAssignedGroups[currentIngesterAddress].pop();
             --s.ingesterClusters[clusterId].clusterGroupCount;
@@ -316,11 +289,6 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         emit IIngesterGroupManager.GroupRemovedFromCluster(clusterId, groupUsername);
     }
 
-    /**
-     * @notice Retrieves the details of a group by its username.
-     * @param groupUsername The username of the group to retrieve.
-     * @return GroupSlim struct containing the group's details.
-     */
     function getGroup(string calldata groupUsername) external view returns (IIngesterGroupManager.GroupSlim memory) {
         IIngesterGroupManager.GroupSlim memory group = IIngesterGroupManager.GroupSlim(
             s.groups[groupUsername].isAdded,
@@ -331,63 +299,34 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
         return group;
     }
 
-    /**
-     * @notice Retrieves the maximum cluster size.
-     * @return uint256 The maximum number of ingesters allowed in a cluster.
-     */
     function getMaxClusterSize() external view returns (uint256) {
         return s.maxClusterSize;
     }
 
-    /**
-     * @notice Retrieves the maximum number of groups allowed per ingester.
-     * @return uint256 The maximum number of groups per ingester.
-     */
     function getMaxGroupsPerIngester() external view returns (uint256) {
         return s.maxGroupsPerIngester;
     }
 
-    /**
-     * @notice Retrieves the maximum number of ingesters allowed per group.
-     * @return uint256 The maximum number of ingesters per group.
-     */
     function getMaxIngestersPerGroup() external view returns (uint256) {
         return s.maxIngestersPerGroup;
     }
 
-    /**
-     * @notice Sets the maximum cluster size.
-     * @param maxClusterSize The new maximum number of ingesters allowed in a cluster.
-     */
     function setMaxClusterSize(uint256 maxClusterSize) external onlyAdmin {
         s.maxClusterSize = maxClusterSize;
         emit IIngesterGroupManager.MaxClusterSizeUpdated(maxClusterSize);
     }
 
-    /**
-     * @notice Sets the maximum number of groups allowed per ingester.
-     * @param maxGroupsPerIngester The new maximum number of groups per ingester.
-     */
     function setMaxGroupsPerIngester(uint256 maxGroupsPerIngester) external onlyAdmin {
         s.maxGroupsPerIngester = maxGroupsPerIngester;
         emit IIngesterGroupManager.MaxGroupsPerIngesterUpdated(maxGroupsPerIngester);
     }
 
-    /**
-     * @notice Sets the maximum number of ingesters allowed per group.
-     * @param maxIngestersPerGroup The new maximum number of ingesters per group.
-     */
     function setMaxIngestersPerGroup(uint256 maxIngestersPerGroup) external {
         require(maxIngestersPerGroup >= 1, "Can only set max ingester per group >= 1");
         s.maxIngestersPerGroup = maxIngestersPerGroup;
         emit IIngesterGroupManager.MaxIngesterPerGroupUpdated(maxIngestersPerGroup);
     }
 
-    /**
-     * @notice Retrieves the group username by its index.
-     * @param groupIndex The index of the group in the groups list.
-     * @return string The groupUsername of the group corresponding to the provided index.
-     */
     function getGroupUsernameByIndex(uint256 groupIndex) external view returns (string memory) {
         return s.groupUsernames[groupIndex];
     }

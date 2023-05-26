@@ -6,11 +6,7 @@ import "./CommonFunctionsFacet.sol";
 import "../interfaces/IIngesterDataGathering.sol";
 import {AppStorage} from "../libraries/LibAppStorage.sol";
 
-contract DataGatheringFacet is
-    AccessControlFacet,
-    CommonFunctionsFacet,
-    IIngesterDataGathering
-{
+contract DataGatheringFacet is AccessControlFacet, CommonFunctionsFacet, IIngesterDataGathering {
     /**
      * @notice Adds IPFS hashes for a registered ingester.
      * @dev Can only be called by a registered ingester.
@@ -18,17 +14,12 @@ contract DataGatheringFacet is
      * @param chatsHash The IPFS hash of the chats data.
      * @param messagesHash The IPFS hash of the messages data.
      */
-    function addIpfsHash(
-        string calldata usersHash,
-        string calldata chatsHash,
-        string calldata messagesHash
-    ) external onlyRegisteredIngester {
+    function addIpfsHash(string calldata usersHash, string calldata chatsHash, string calldata messagesHash)
+        external
+        onlyRegisteredIngester
+    {
         address ingesterAddress = msg.sender;
-        IpfsHash memory ipfsHashUsers = IpfsHash(
-            usersHash,
-            chatsHash,
-            messagesHash
-        );
+        IpfsHash memory ipfsHashUsers = IpfsHash(usersHash, chatsHash, messagesHash);
         s.ipfsHashes[ingesterAddress] = ipfsHashUsers;
         emit IpfsHashAdded(ingesterAddress, usersHash, chatsHash, messagesHash);
     }
@@ -39,9 +30,7 @@ contract DataGatheringFacet is
      * @param ingesterAddress The address of the registered ingester.
      * @return ipfsHashes The IPFS struct of the ingester's data hashes.
      */
-    function getIpfsHashes(
-        address ingesterAddress
-    ) public view returns (IpfsHash memory ipfsHashes) {
+    function getIpfsHashes(address ingesterAddress) public view returns (IpfsHash memory ipfsHashes) {
         return s.ipfsHashes[ingesterAddress];
     }
 }

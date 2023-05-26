@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@solidstate/contracts/access/access_control/AccessControl.sol";
 import "../libraries/LibDiamond.sol";
 import {LibAppStorage, AppStorage} from "../libraries/LibAppStorage.sol";
 
@@ -15,10 +15,7 @@ contract AccessControlFacet is AccessControl {
      * @notice Modifier to enforce that the caller is a registered ingester.
      */
     modifier onlyRegisteredIngester() {
-        require(
-            hasRole(LibAppStorage.INGESTER_ROLE, msg.sender),
-            "LibAppStorage: Not a registered ingester"
-        );
+        require(_hasRole(LibAppStorage.INGESTER_ROLE, msg.sender), "LibAppStorage: Not a registered ingester");
         _;
     }
 
@@ -26,10 +23,7 @@ contract AccessControlFacet is AccessControl {
      * @notice Modifier to enforce that the caller is a registered controller.
      */
     modifier onlyRegisteredController() {
-        require(
-            hasRole(LibAppStorage.CONTROLLER_ROLE, msg.sender),
-            "LibAppStorage: Not a registered controller"
-        );
+        require(_hasRole(LibAppStorage.CONTROLLER_ROLE, msg.sender), "LibAppStorage: Not a registered controller");
         _;
     }
 
@@ -38,10 +32,8 @@ contract AccessControlFacet is AccessControl {
      * @param ingesterAddress The address to check for ingester registration.
      * @return A boolean indicating if the address is a registered ingester.
      */
-    function isRegisteredIngester(
-        address ingesterAddress
-    ) public view returns (bool) {
-        return hasRole(LibAppStorage.INGESTER_ROLE, ingesterAddress);
+    function isRegisteredIngester(address ingesterAddress) public view returns (bool) {
+        return _hasRole(LibAppStorage.INGESTER_ROLE, ingesterAddress);
     }
 
     /**
@@ -49,10 +41,8 @@ contract AccessControlFacet is AccessControl {
      * @param controller The address to check for controller registration.
      * @return A boolean indicating if the address is a registered controller.
      */
-    function isRegisteredController(
-        address controller
-    ) public view returns (bool) {
-        return hasRole(LibAppStorage.INGESTER_ROLE, controller);
+    function isRegisteredController(address controller) public view returns (bool) {
+        return _hasRole(LibAppStorage.INGESTER_ROLE, controller);
     }
 
     /**
@@ -61,10 +51,7 @@ contract AccessControlFacet is AccessControl {
      * @param controller The address of the controller to check.
      * @return A boolean indicating if the ingester is owned by the controller.
      */
-    function isIngesterOwnedByController(
-        address ingester,
-        address controller
-    ) public view returns (bool) {
+    function isIngesterOwnedByController(address ingester, address controller) public view returns (bool) {
         AppStorage storage s = LibAppStorage.appStorage();
         return s.ingesterToController[ingester].controllerAddress == controller;
     }
