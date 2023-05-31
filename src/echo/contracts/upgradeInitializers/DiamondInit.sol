@@ -8,12 +8,12 @@ pragma solidity 0.8.18;
 * Implementation of a diamond.
 /******************************************************************************/
 
-import {LibDiamond} from "../libraries/LibDiamond.sol";
-import {IDiamondLoupe} from "../interfaces/IDiamondLoupe.sol";
-import {IDiamondCut} from "../interfaces/IDiamondCut.sol";
-import {IERC173} from "../interfaces/IERC173.sol";
-import {IERC165} from "../interfaces/IERC165.sol";
-import {AppStorage} from "../libraries/LibAppStorage.sol";
+import { LibDiamond } from "../libraries/LibDiamond.sol";
+import { IDiamondLoupe } from "../interfaces/IDiamondLoupe.sol";
+import { IDiamondCut } from "../interfaces/IDiamondCut.sol";
+import { IERC173 } from "../interfaces/IERC173.sol";
+import { IERC165 } from "../interfaces/IERC165.sol";
+import { AppStorage } from "../libraries/LibAppStorage.sol";
 
 // It is expected that this contract is customized if you want to deploy your diamond
 // with data from a deployment script. Use the init function to initialize state variables
@@ -22,16 +22,15 @@ import {AppStorage} from "../libraries/LibAppStorage.sol";
 // Adding parameters to the `init` or other functions you add here can make a single deployed
 // DiamondInit contract reusable accross upgrades, and can be used for multiple diamonds.
 
-contract DiamondInit {
-    AppStorage internal s;
+contract DiamondInit {    
+    AppStorage internal s;  
 
-    struct Args {
+    struct Args{
         uint256 maxClusterSize;
-        uint256 maxGroupsPerIngester;
         uint256 maxIngestersPerGroup;
     }
 
-    // You can add parameters to this function in order to pass in
+    // You can add parameters to this function in order to pass in 
     // data to set your own state variables
     function init(Args memory _args) external {
         // adding ERC165 data
@@ -42,14 +41,13 @@ contract DiamondInit {
         ds.supportedInterfaces[type(IERC173).interfaceId] = true;
 
         s.maxClusterSize = _args.maxClusterSize;
-        s.maxGroupsPerIngester = _args.maxGroupsPerIngester;
         s.maxIngestersPerGroup = _args.maxIngestersPerGroup;
 
-        // add your own state variables
-        // EIP-2535 specifies that the `diamondCut` function takes two optional
+        // add your own state variables 
+        // EIP-2535 specifies that the `diamondCut` function takes two optional 
         // arguments: address _init and bytes calldata _calldata
         // These arguments are used to execute an arbitrary function using delegatecall
         // in order to set state variables in the diamond during deployment or an upgrade
-        // More info here: https://eips.ethereum.org/EIPS/eip-2535#diamond-interface
+        // More info here: https://eips.ethereum.org/EIPS/eip-2535#diamond-interface 
     }
 }
