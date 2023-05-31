@@ -189,6 +189,16 @@ contract CommonFunctionsFacet {
         return s.controllerToIngesters[controllerAddress];
     }
 
+
+    /**
+    * @notice Retrieves the controller of an ingester.
+    * @param ingesterAddress The address of the ingester.
+    * @return The address of the controller
+    */
+    function getIngesterController(address ingesterAddress) public view returns (address) {
+        return s.ingesterToController[ingesterAddress].controllerAddress;
+    }
+
     /**
     * @notice Retrieves the total number of groups.
     * @return The count of total groups.

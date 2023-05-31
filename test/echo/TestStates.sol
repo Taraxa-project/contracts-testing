@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
 /******************************************************************************\
 * Authors: Timo Neumann <timo@fyde.fi>, Rohan Sundar <rohan@fyde.fi>
@@ -7,6 +7,7 @@ pragma solidity ^0.8.0;
 * Abstract Contracts for the shared setup of the tests
 /******************************************************************************/
 
+import "../../src/echo/contracts/upgradeInitializers/DiamondInit.sol";
 import "../../src/echo/contracts/interfaces/IDiamondCut.sol";
 import "../../src/echo/contracts/facets/DiamondCutFacet.sol";
 import "../../src/echo/contracts/facets/DiamondLoupeFacet.sol";
@@ -18,10 +19,19 @@ import "../../src/echo/contracts/facets/GroupManagerFacet.sol";
 import "../../src/echo/contracts/facets/RegistryFacet.sol";
 import "../../src/echo/contracts/Diamond.sol";
 import "./HelperContract.sol";
+import "../utils/Utils.sol";
 
 
 abstract contract StateDeployDiamond is HelperContract {
+    Utils internal utils;
+    address payable[] internal users;
 
+    struct Args{
+        uint256 maxClusterSize;
+        uint256 maxIngestersPerGroup;
+    }
+
+    address owner;
     //contract types of facets to be deployed
     Diamond diamond;
     DiamondCutFacet dCutFacet;
@@ -38,18 +48,33 @@ abstract contract StateDeployDiamond is HelperContract {
 
     // deploys diamond and connects facets
     function setUp() public virtual {
+        //Define Users
+        owner = address(this);
+        utils = new Utils();
+        users = utils.createUsers(10);
+
 
         //deploy facets
         dCutFacet = new DiamondCutFacet();
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
+        DiamondInit dInit = new DiamondInit();
+
         facetNames = ["DiamondCutFacet", "DiamondLoupeFacet", "OwnershipFacet"];
 
-        // diamod arguments
+        DiamondInit.Args memory initArgs = DiamondInit.Args({
+            maxClusterSize: 500,
+            maxIngestersPerGroup: 1
+        });
+
+        // Encode initArgs with the function signature
+        bytes memory initCalldata = abi.encodeWithSignature("init(DiamondInit.Args)", initArgs);
+
+        // Diamond arguments
         DiamondArgs memory _args = DiamondArgs({
-        owner: address(this),
-        init: address(0),
-        initCalldata: " "
+            owner: address(this),
+            init: address(0), // Replace with the actual address of the contract that has the `init` function
+            initCalldata: initCalldata
         });
 
         // FacetCut with CutFacet for initialisation
@@ -100,7 +125,6 @@ abstract contract StateDeployDiamond is HelperContract {
 }
 
 
-// tests proper upgrade of diamond when adding a facet
 abstract contract StateAddAllFacets is StateDeployDiamond{
 
     AccessControlFacet accessF;
@@ -176,6 +200,23 @@ abstract contract StateAddAllFacets is StateDeployDiamond{
         // add functions to diamond
         ICut.diamondCut(facetCut, address(0x0), "");
 
+        accessF = AccessControlFacet(address(diamond));
+        commonFunctionsF = CommonFunctionsFacet(address(diamond));
+        dataF = DataGatheringFacet(address(diamond));
+        groupManagerF = GroupManagerFacet(address(diamond));
+        registryF = RegistryFacet(address(diamond));
+        
+        setNewMaxClusterSize(10);
+        setNewMaxIngestersPerGroup(1);
+
+    }
+
+    function setNewMaxClusterSize(uint256 maxClusterSize) public {
+        groupManagerF.setMaxClusterSize(maxClusterSize);
+    }
+
+    function setNewMaxIngestersPerGroup(uint256 maxIngestersPerGroup) public {
+        groupManagerF.setMaxIngestersPerGroup(maxIngestersPerGroup);
     }
 
 }
