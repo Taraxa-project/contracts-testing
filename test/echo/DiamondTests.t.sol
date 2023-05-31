@@ -32,3 +32,14 @@ contract DiamondDeployer is StateDeployDiamond {
         }
     }
 }
+
+
+contract TestAddFacet1 is StateAddAllFacets {
+
+    function test5CanCallTest1FacetFunction() public {
+
+         // try to call function on new Facet
+        GroupManagerFacet(address(diamond)).addGroup("group1");
+    }
+
+}

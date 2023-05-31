@@ -88,12 +88,12 @@ abstract contract HelperContract is IDiamond, IDiamondLoupe, Test{
         for (uint i = 0; i < array.length; i++) {
             bool toRemove = false;
             for (uint j = 0; j < elements.length; j++) {
-                console.log('comparing two elements');
-                console.logBytes4( array[i]);
-                console.logBytes4( elements[j]);
+                // console.log('comparing two elements');
+                // console.logBytes4( array[i]);
+                // console.logBytes4( elements[j]);
                 if (array[i] == elements[j]) {
                     toRemove = true;
-                    console.log('found two elements that are similar');
+                    // console.log('found two elements that are similar');
                     break;
                 }
             }
