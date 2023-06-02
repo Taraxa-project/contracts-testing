@@ -7,7 +7,6 @@ import "@solidstate/contracts/cryptography/ECDSA.sol";
 import "./AccessControlFacet.sol";
 import "./CommonFunctionsFacet.sol";
 
-
 contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunctionsFacet {
 
     /**
@@ -101,6 +100,10 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
         uint256 clusterId = s.controllerToIngesters[controllerAddress][ingesterIndexToRemove].clusterId;
         uint ingesterAddressesIndexToRemove = s.ingesterToController[ingesterAddress].ingesterAddressesIndex;
         
+        if (!s.controllerToIngesters[controllerAddress][ingesterIndexToRemove].isAllocated) {
+            removeUnallocatedIngester(ingesterAddress);
+        }
+        
         removeIngesterFromIngesterAddresses(ingesterAddressesIndexToRemove);
         removeIngesterFromControllerMapping(ingesterIndexToRemove, controllerAddress);
         removeIngesterFromIngesterMapping(ingesterAddress);
@@ -115,6 +118,18 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
         emit IIngesterRegistration.IngesterUnRegistered(controllerAddress, ingesterAddress);
     }  
 
+    function removeUnallocatedIngester(address ingesterAddress) internal {
+        for (uint256 i = 0; i < s.unallocatedIngesters.length; i++) {
+            if (s.unallocatedIngesters[i] == ingesterAddress) {
+                if (i < s.unallocatedIngesters.length -1) {
+                    address unAllocatedIngesterToMove = s.unallocatedIngesters[s.unallocatedIngesters.length - 1];
+                    s.unallocatedIngesters[i] = unAllocatedIngesterToMove;
+                }
+                s.unallocatedIngesters.pop();
+            }
+        }
+    }
+
 
     function removeIngesterFromIngesterAddresses(uint256 ingesterAddressesIndexToRemove) internal {
         uint256 ingesterCount = s.ingesterAddresses.length;
@@ -128,7 +143,6 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
 
     function removeIngesterFromControllerMapping(uint256 ingesterIndexToRemove, address controllerAddress) internal {
         uint numIngestersPerController = s.controllerToIngesters[controllerAddress].length;
-
         if (ingesterIndexToRemove != numIngestersPerController - 1) {
             Ingester memory ingester = s.controllerToIngesters[controllerAddress][numIngestersPerController - 1];
             s.controllerToIngesters[controllerAddress][ingesterIndexToRemove] = ingester;

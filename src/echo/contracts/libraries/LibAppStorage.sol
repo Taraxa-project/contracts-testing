@@ -66,6 +66,7 @@ library LibAppStorage {
                 s.groupsCluster[clusterId].ingesterAddresses.pop();
                 emit IngesterRemovedFromCluster(clusterId, ingesterAddress);
 
+
                 //check if there is unallocated ingesters to assign
                 if (s.unallocatedIngesters.length > 0) {
                     address unAllocatedIngester = s.unallocatedIngesters[s.unallocatedIngesters.length - 1];
@@ -166,7 +167,6 @@ library LibAppStorage {
         bool foundAvailableCluster = false;
         uint256 numClusters = s.clusterIds.length;
         uint256 minIngesterReplication = 0;
-
         for (uint256 i = 0; i < numClusters; i++) {
             uint256 numIngesters = s.groupsCluster[s.clusterIds[i]].ingesterAddresses.length;
 
