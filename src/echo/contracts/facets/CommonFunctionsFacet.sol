@@ -207,4 +207,12 @@ contract CommonFunctionsFacet {
         return s.groupUsernames.length;
     }
 
+    /**
+    * @notice Retrieves the groups usernames.
+    * @return An array with all the added groups
+    */
+    function getGroups() external view returns(string[] memory) {
+        return s.groupUsernames;
+    }
+
 }

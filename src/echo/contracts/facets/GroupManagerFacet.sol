@@ -319,6 +319,7 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
     * @return string The groupUsername of the group corresponding to the provided index.
     */
     function getGroupUsernameByIndex(uint256 groupIndex) external view returns (string memory) {
+        require(groupIndex < s.groupUsernames.length, "Group index exceeds the groupUsernames array length.");
         return s.groupUsernames[groupIndex];
     }
 }
