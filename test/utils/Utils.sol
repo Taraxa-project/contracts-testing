@@ -51,7 +51,7 @@ contract Utils is Test {
         vm.roll(targetBlock);
     }
 
-    function contains(address[] memory _array, address _value) public pure returns (bool) {
+    function containsAddr(address[] memory _array, address _value) public pure returns (bool) {
         for(uint i=0; i<_array.length; i++) {
             if(_array[i] == _value) {
                 return true;
@@ -59,5 +59,45 @@ contract Utils is Test {
         }
         return false;
     }
+
+    function containsStr(string[] memory _array, string memory _value) public pure returns (bool) {
+        for(uint i=0; i<_array.length; i++) {
+            if(keccak256(abi.encodePacked(_array[i])) == keccak256(abi.encodePacked(_value))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function includesAddresses(address[] memory _array1, address[] memory _array2) public pure returns(bool) {
+        for (uint i = 0; i < _array2.length; i++) {
+            bool found = false;
+            for (uint j = 0; j < _array1.length; j++) {
+                if (_array1[j] == _array2[i]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function countMatchingAddresses(address[] memory _array1, address[] memory _array2) public pure returns(uint256) {
+        uint256 count = 0;
+        for (uint i = 0; i < _array2.length; i++) {
+            for (uint j = 0; j < _array1.length; j++) {
+                if (_array1[j] == _array2[i]) {
+                    count++;
+                    break;
+                }
+            }
+        }
+        return count;
+    }
+
+
 
 }
