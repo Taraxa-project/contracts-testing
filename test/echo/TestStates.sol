@@ -20,26 +20,26 @@ import "../../src/echo/contracts/facets/RegistryFacet.sol";
 import "../../src/echo/contracts/Diamond.sol";
 import "./HelperContract.sol";
 import "../utils/Utils.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 
-abstract contract StateDeployDiamond is HelperContract {
+abstract contract StateDeployDiamondBase is HelperContract {
     Utils internal utils;
-    address payable[] internal users;
-
-    struct Args{
-        uint256 maxClusterSize;
-        uint256 maxIngestersPerGroup;
-    }
-
+    address[] users;
+    bytes32[] users_priv_key;
     address owner;
+
+
     //contract types of facets to be deployed
     Diamond diamond;
     DiamondCutFacet dCutFacet;
     DiamondLoupeFacet dLoupe;
     OwnershipFacet ownerF;
-  
-
-    //interfaces with Facet ABI connected to diamond address
+    AccessControlFacet accessF;
+    CommonFunctionsFacet commonFunctionsF;
+    DataGatheringFacet dataF;
+    GroupManagerFacet groupManagerF;
+    RegistryFacet registryF;
     IDiamondLoupe ILoupe;
     IDiamondCut ICut;
 
@@ -51,91 +51,12 @@ abstract contract StateDeployDiamond is HelperContract {
         //Define Users
         owner = address(this);
         utils = new Utils();
-        users = utils.createUsers(10);
-
+        (users, users_priv_key) = utils.createUsers(20);
 
         //deploy facets
         dCutFacet = new DiamondCutFacet();
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
-        DiamondInit dInit = new DiamondInit();
-
-        facetNames = ["DiamondCutFacet", "DiamondLoupeFacet", "OwnershipFacet"];
-
-        DiamondInit.Args memory initArgs = DiamondInit.Args({
-            maxClusterSize: 500,
-            maxIngestersPerGroup: 1
-        });
-
-        // Encode initArgs with the function signature
-        bytes memory initCalldata = abi.encodeWithSignature("init(DiamondInit.Args)", initArgs);
-
-        // Diamond arguments
-        DiamondArgs memory _args = DiamondArgs({
-            owner: address(this),
-            init: address(0), // Replace with the actual address of the contract that has the `init` function
-            initCalldata: initCalldata
-        });
-
-        // FacetCut with CutFacet for initialisation
-        FacetCut[] memory cut0 = new FacetCut[](1);
-        cut0[0] = FacetCut ({
-            facetAddress: address(dCutFacet),
-            action: IDiamond.FacetCutAction.Add,
-            functionSelectors: generateSelectors("DiamondCutFacet")
-        });
-
-
-        // deploy diamond
-        diamond = new Diamond(cut0, _args);
-
-        //upgrade diamond with facets
-
-        //build cut struct
-        FacetCut[] memory cut = new FacetCut[](2);
-
-        cut[0] = (
-            FacetCut({
-            facetAddress: address(dLoupe),
-            action: FacetCutAction.Add,
-            functionSelectors: generateSelectors("DiamondLoupeFacet")
-            })
-        );
-
-        cut[1] = (
-            FacetCut({
-            facetAddress: address(ownerF),
-            action: FacetCutAction.Add,
-            functionSelectors: generateSelectors("OwnershipFacet")
-            })
-        );
-
-        // initialise interfaces
-        ILoupe = IDiamondLoupe(address(diamond));
-        ICut = IDiamondCut(address(diamond));
-
-        //upgrade diamond
-        ICut.diamondCut(cut, address(0x0), "");
-
-        // get all addresses
-        facetAddressList = ILoupe.facetAddresses();
-    }
-
-
-}
-
-
-abstract contract StateAddAllFacets is StateDeployDiamond{
-
-    AccessControlFacet accessF;
-    CommonFunctionsFacet commonFunctionsF;
-    DataGatheringFacet dataF;
-    GroupManagerFacet groupManagerF;
-    RegistryFacet registryF;
-
-    function setUp() public virtual override {
-        super.setUp();
-        //deploy Test1Facet
         accessF = new AccessControlFacet();
         commonFunctionsF = new CommonFunctionsFacet();
         dataF = new DataGatheringFacet();
@@ -157,58 +78,206 @@ abstract contract StateAddAllFacets is StateDeployDiamond{
         
         bytes4[] memory selectorsRegistryWAccess = removeElements(selectorsAccess, selectorsRegistry);
         bytes4[] memory selectorsRegistryWShared = removeElements(selectorsCommon, selectorsRegistryWAccess);
-        
 
 
-        // array of functions to add
-        FacetCut[] memory facetCut = new FacetCut[](5);
-        facetCut[0] =
+        // facetNames = ["DiamondCutFacet", "DiamondLoupeFacet", "OwnershipFacet", "AccessControlFacet", "CommonFunctionsFacet", "DataGatheringFacet", "GroupManagerFacet", "RegistryFacet"];
+
+        // DiamondInit.Args memory initArgs = DiamondInit.Args({
+        //     maxClusterSize: 500,
+        //     maxIngestersPerGroup: 1
+        // });
+
+        // Encode initArgs with the function signature
+        // bytes memory initCalldata = abi.encodeWithSignature("init(DiamondInit.Args)", initArgs);
+
+        // Diamond arguments
+        DiamondArgs memory _args = DiamondArgs({
+            owner: address(this),
+            init: address(0), 
+            initCalldata: " "
+        });
+
+        // FacetCut with CutFacet for initialisation
+        FacetCut[] memory cut0 = new FacetCut[](1);
+        cut0[0] = FacetCut ({
+            facetAddress: address(dCutFacet),
+            action: IDiamond.FacetCutAction.Add,
+            functionSelectors: generateSelectors("DiamondCutFacet")
+        });
+
+        // deploy diamond
+        diamond = new Diamond(cut0, _args);
+
+        //build cut struct
+        FacetCut[] memory cut = new FacetCut[](7);
+
+        cut[0] = (
+            FacetCut({
+            facetAddress: address(dLoupe),
+            action: FacetCutAction.Add,
+            functionSelectors: generateSelectors("DiamondLoupeFacet")
+            })
+        );
+
+        cut[1] = (
+            FacetCut({
+            facetAddress: address(ownerF),
+            action: FacetCutAction.Add,
+            functionSelectors: generateSelectors("OwnershipFacet")
+            })
+        );
+        cut[2] =
         FacetCut({
             facetAddress: address(accessF),
             action: FacetCutAction.Add,
             functionSelectors: selectorsAccess
         });
 
-        facetCut[1] =
+        cut[3] =
         FacetCut({
             facetAddress: address(commonFunctionsF),
             action: FacetCutAction.Add,
             functionSelectors: selectorsCommon
         });
 
-        facetCut[2] =
+        cut[4] =
         FacetCut({
             facetAddress: address(dataF),
             action: FacetCutAction.Add,
             functionSelectors: selectorsDataWShared
         });
 
-        facetCut[3] =
+        cut[5] =
         FacetCut({
             facetAddress: address(groupManagerF),
             action: FacetCutAction.Add,
             functionSelectors: selectorsGroupsWShared
         });
 
-        facetCut[4] =
+        cut[6] =
         FacetCut({
             facetAddress: address(registryF),
             action: FacetCutAction.Add,
             functionSelectors: selectorsRegistryWShared
         });
 
-        // add functions to diamond
-        ICut.diamondCut(facetCut, address(0x0), "");
 
+        // initialise interfaces
+        ILoupe = IDiamondLoupe(address(diamond));
+        ICut = IDiamondCut(address(diamond));
+
+        //upgrade diamond
+        ICut.diamondCut(cut, address(0x0), "");
+
+        // get all addresses
+        // facetAddressList = ILoupe.facetAddresses();
+        
         accessF = AccessControlFacet(address(diamond));
         commonFunctionsF = CommonFunctionsFacet(address(diamond));
         dataF = DataGatheringFacet(address(diamond));
         groupManagerF = GroupManagerFacet(address(diamond));
         registryF = RegistryFacet(address(diamond));
         
+    }
+}
+
+contract TestingInvariants is StateDeployDiamondBase {
+    uint256 public mappingNonce = 1;
+    mapping (uint256 => mapping (address => bool)) public controllers;
+
+    function assertIngesterPerGroupInvariant() public {
+        uint256 maxIngesterPerGroup = groupManagerF.getMaxIngestersPerGroup();
+        uint256[] memory clusters = groupManagerF.getClusters();
+
+        for (uint256 i = 0; i < clusters.length; i++) {
+            IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            assertLe(cluster.ingesterAddresses.length, maxIngesterPerGroup);
+        }
+    }
+
+    function assertMaxClusterSizeInvariant() public {
+        uint256 maxClusterSize = groupManagerF.getMaxClusterSize();
+        uint256[] memory clusters = groupManagerF.getClusters();
+
+        for (uint256 i = 0; i < clusters.length; i++) {
+            IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            assertLe(cluster.groupUsernames.length, maxClusterSize);
+        }
+    }
+
+    function assertGroupCountInvariant() public {
+        uint256 groupCount = groupManagerF.getGroupCount();
+        uint256[] memory clusters = groupManagerF.getClusters();
+        uint256 groupCountCheck = 0;
+
+        for (uint256 i = 0; i < clusters.length; i++) {
+            IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            groupCountCheck += cluster.groupUsernames.length;
+        }
+        assertEq(groupCountCheck, groupCount);
+    }
+
+    function assertIngesterCountInvariant() public {
+        uint256 ingesterCount = groupManagerF.getIngesterCount();
+        uint256[] memory clusters = groupManagerF.getClusters();
+        uint256 ingesterCountCheck = 0;
+
+        for (uint256 i = 0; i < clusters.length; i++) {
+            IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            ingesterCountCheck += cluster.ingesterAddresses.length;
+        }
+        assertEq(ingesterCountCheck, ingesterCount);
+    }
+
+    function assertInactiveClusterCountInvariant() public {
+        uint256[] memory inactiveClusters = groupManagerF.getinactiveClusters();
+        uint256[] memory clusters = groupManagerF.getClusters();
+        uint256 inactiveClusterCheck = 0;
+
+        for (uint256 i = 0; i < clusters.length; i++) {
+            IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            if (cluster.groupUsernames.length == 0) {
+                inactiveClusterCheck += 1;
+            }
+        }
+        assertEq(inactiveClusterCheck, inactiveClusters.length);
+    }
+
+    function assertUniqueControllerInClusterInvariant() public {
+        uint256[] memory clusters = groupManagerF.getClusters();
+
+        for (uint256 i = 0; i < clusters.length; i++) {
+            IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            uint256 numIngesters = cluster.ingesterAddresses.length;
+
+            for (uint j = 0; j < numIngesters; j++) {
+                address controllerAddress = groupManagerF.getIngesterController(cluster.ingesterAddresses[j]);
+                
+                //if not false then there is a non-unique controller within cluster
+                assertFalse(controllers[mappingNonce][controllerAddress]);
+                controllers[mappingNonce][controllerAddress] = true;
+            }
+            ++mappingNonce;
+        }
+    }
+
+    function assertAllInvariants() public {
+        assertIngesterPerGroupInvariant();
+        assertMaxClusterSizeInvariant();
+        assertGroupCountInvariant();
+        assertIngesterCountInvariant();
+        assertInactiveClusterCountInvariant();
+        assertUniqueControllerInClusterInvariant();
+    }
+}
+
+contract StateAllFacetsNoReplication is StateDeployDiamondBase {
+
+
+    function setUp() public virtual override {
+        super.setUp();
         setNewMaxClusterSize(10);
         setNewMaxIngestersPerGroup(1);
-
     }
 
     function setNewMaxClusterSize(uint256 maxClusterSize) public {
@@ -219,4 +288,22 @@ abstract contract StateAddAllFacets is StateDeployDiamond{
         groupManagerF.setMaxIngestersPerGroup(maxIngestersPerGroup);
     }
 
+    
+}
+
+
+contract StateAddAllFacetsWithReplication is StateAllFacetsNoReplication{
+    uint256 newMaxIngesterPerGroup = 3;
+
+    function setUp() public virtual override {
+        super.setUp();
+
+        setNewMaxIngestersPerGroup(newMaxIngesterPerGroup);
+
+        uint256 numGroups = 50;
+        for (uint i = 0; i < numGroups; i++) {
+            string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
+            groupManagerF.addGroup(groupName);
+        }
+    }
 }

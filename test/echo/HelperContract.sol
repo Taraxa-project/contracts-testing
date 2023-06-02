@@ -170,4 +170,17 @@ abstract contract HelperContract is IDiamond, IDiamondLoupe, Test{
     function facetFunctionSelectors(address _facet) external view returns (bytes4[] memory facetFunctionSelectors_) {}
     function facets() external view returns (Facet[] memory facets_) {}
 
+
+    function getEthSignedMessageHash(
+        bytes32 _messageHash
+    ) public pure returns (bytes32) {
+        /*
+        Signature is produced by signing a keccak256 hash with the following format:
+        "\x19Ethereum Signed Message\n" + len(msg) + msg
+        */
+        return
+            keccak256(
+                abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash)
+            );
+    }
 }

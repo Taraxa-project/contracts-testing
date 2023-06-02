@@ -266,6 +266,7 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
     * @return GroupWithIngesters struct containing the group's details and the associated ingesters.
     */
     function getGroup(string calldata groupUsername) external view returns (IIngesterGroupManager.GroupWithIngesters memory) {
+        require(s.groups[groupUsername].isAdded, 'Group does not exist.');
         IIngesterGroupManager.Group memory group = s.groups[groupUsername];
         IIngesterGroupManager.GroupWithIngesters memory groups = GroupWithIngesters(
             group.isAdded,
