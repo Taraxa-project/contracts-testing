@@ -25,6 +25,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 abstract contract StateDeployDiamondBase is HelperContract {
     Utils internal utils;
+    uint256 maxUsers = 100;
     address[] users;
     bytes32[] users_priv_key;
     address owner;
@@ -51,7 +52,7 @@ abstract contract StateDeployDiamondBase is HelperContract {
         //Define Users
         owner = address(this);
         utils = new Utils();
-        (users, users_priv_key) = utils.createUsers(20);
+        (users, users_priv_key) = utils.createUsers(maxUsers);
 
         //deploy facets
         dCutFacet = new DiamondCutFacet();
@@ -78,17 +79,6 @@ abstract contract StateDeployDiamondBase is HelperContract {
         
         bytes4[] memory selectorsRegistryWAccess = removeElements(selectorsAccess, selectorsRegistry);
         bytes4[] memory selectorsRegistryWShared = removeElements(selectorsCommon, selectorsRegistryWAccess);
-
-
-        // facetNames = ["DiamondCutFacet", "DiamondLoupeFacet", "OwnershipFacet", "AccessControlFacet", "CommonFunctionsFacet", "DataGatheringFacet", "GroupManagerFacet", "RegistryFacet"];
-
-        // DiamondInit.Args memory initArgs = DiamondInit.Args({
-        //     maxClusterSize: 500,
-        //     maxIngestersPerGroup: 1
-        // });
-
-        // Encode initArgs with the function signature
-        // bytes memory initCalldata = abi.encodeWithSignature("init(DiamondInit.Args)", initArgs);
 
         // Diamond arguments
         DiamondArgs memory _args = DiamondArgs({
@@ -169,9 +159,6 @@ abstract contract StateDeployDiamondBase is HelperContract {
         //upgrade diamond
         ICut.diamondCut(cut, address(0x0), "");
 
-        // get all addresses
-        // facetAddressList = ILoupe.facetAddresses();
-        
         accessF = AccessControlFacet(address(diamond));
         commonFunctionsF = CommonFunctionsFacet(address(diamond));
         dataF = DataGatheringFacet(address(diamond));
@@ -191,6 +178,7 @@ contract TestingInvariants is StateDeployDiamondBase {
 
         for (uint256 i = 0; i < clusters.length; i++) {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            console.log('asserting ingester per group invariant');
             assertLe(cluster.ingesterAddresses.length, maxIngesterPerGroup);
         }
     }
@@ -201,6 +189,7 @@ contract TestingInvariants is StateDeployDiamondBase {
 
         for (uint256 i = 0; i < clusters.length; i++) {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
+            console.log('asserting max cluster size invariant');
             assertLe(cluster.groupUsernames.length, maxClusterSize);
         }
     }
@@ -214,6 +203,7 @@ contract TestingInvariants is StateDeployDiamondBase {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
             groupCountCheck += cluster.groupUsernames.length;
         }
+        console.log('asserting group count invariant');
         assertEq(groupCountCheck, groupCount);
     }
 
@@ -226,6 +216,8 @@ contract TestingInvariants is StateDeployDiamondBase {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
             ingesterCountCheck += cluster.ingesterAddresses.length;
         }
+        ingesterCountCheck += groupManagerF.getunallocatedIngesters().length;
+
         assertEq(ingesterCountCheck, ingesterCount);
     }
 
@@ -240,6 +232,9 @@ contract TestingInvariants is StateDeployDiamondBase {
                 inactiveClusterCheck += 1;
             }
         }
+        console.log('asserting inactive clusters');
+        console.log('inactiveClusterCheck', inactiveClusterCheck);
+        console.log('inactiveClusters.length', inactiveClusters.length);
         assertEq(inactiveClusterCheck, inactiveClusters.length);
     }
 
@@ -254,6 +249,8 @@ contract TestingInvariants is StateDeployDiamondBase {
                 address controllerAddress = groupManagerF.getIngesterController(cluster.ingesterAddresses[j]);
                 
                 //if not false then there is a non-unique controller within cluster
+                console.log('asserting unique controllers');
+                console.log('controllers[mappingNonce][controllerAddress]', controllers[mappingNonce][controllerAddress]);
                 assertFalse(controllers[mappingNonce][controllerAddress]);
                 controllers[mappingNonce][controllerAddress] = true;
             }
@@ -299,11 +296,5 @@ contract StateAddAllFacetsWithReplication is StateAllFacetsNoReplication{
         super.setUp();
 
         setNewMaxIngestersPerGroup(newMaxIngesterPerGroup);
-
-        uint256 numGroups = 50;
-        for (uint i = 0; i < numGroups; i++) {
-            string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
-            groupManagerF.addGroup(groupName);
-        }
     }
 }
