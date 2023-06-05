@@ -81,7 +81,7 @@ abstract contract HelperContract is IDiamond, IDiamondLoupe, Test{
 
     }
 
-    function removeElements(bytes4[] memory elements, bytes4[] memory array) public view returns (bytes4[] memory) {
+    function removeElements(bytes4[] memory elements, bytes4[] memory array) public pure returns (bytes4[] memory) {
         bytes4[] memory newArray = new bytes4[](array.length);
         uint count = 0;
 

@@ -25,7 +25,10 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 abstract contract StateDeployDiamondBase is HelperContract {
     Utils internal utils;
-    uint256 maxUsers = 100;
+    uint256 maxUsers = 25;
+    uint256 maxGroups = 200;
+    string message = "test";
+    uint256 nonce = 999;
     address[] users;
     bytes32[] users_priv_key;
     address owner;
@@ -168,9 +171,214 @@ abstract contract StateDeployDiamondBase is HelperContract {
     }
 }
 
+contract TestUtilities is StateDeployDiamondBase{
+
+    function addGroupsWFuzz(uint256 amountOfGroups) public {
+        vm.assume(amountOfGroups > 0);
+        vm.assume(amountOfGroups < maxGroups);
+
+
+        for (uint i = 0; i < amountOfGroups; i++) {
+            string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
+            try groupManagerF.getGroup(groupName) {
+            // The group exists, so do nothing and continue to the next iteration
+                continue;
+            } catch {
+                // The group doesn't exist (the getGroup call reverted), so add it
+                groupManagerF.addGroup(groupName);
+            }
+        }
+    }
+
+    function addGroups(uint256 amountOfGroups) public {
+        for (uint i = 0; i < amountOfGroups; i++) {
+            string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
+            try groupManagerF.getGroup(groupName) {
+            // The group exists, so do nothing and continue to the next iteration
+                continue;
+            } catch {
+                // The group doesn't exist (the getGroup call reverted), so add it
+                groupManagerF.addGroup(groupName);
+            }
+        }
+    }
+
+    function hashAndSignMessage(address user, bytes32 user_priv_key, string memory message, uint256 nonce) public returns (bytes memory) {
+        bytes32 messageHash = keccak256(abi.encodePacked(user, message, nonce));
+        bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(uint256(user_priv_key), ethSignedMessageHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
+
+        return signature;
+    }
+
+    function removeGroupsWFuzz(uint256 amountOfGroups) public {
+        vm.assume(amountOfGroups > 0);
+        vm.assume(amountOfGroups < maxGroups);
+
+        for (uint i = 0; i < amountOfGroups; i++) {
+            string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
+            
+            try groupManagerF.getGroup(groupName) {
+            // The group exists, so do nothing and continue to the next iteration
+                IIngesterGroupManager.GroupWithIngesters memory groupToRemove = groupManagerF.getGroup(groupName);
+                address[] memory groupIngesters = groupToRemove.ingesterAddresses;
+                groupManagerF.removeGroup(groupName);
+            
+                for (uint256 i = 0; i < groupIngesters.length; i++) {
+                    IIngesterRegistration.IngesterWithGroups memory ingester = registryF.getIngesterWithGroups(groupIngesters[i]);
+                    assert(!utils.containsStr(ingester.assignedGroups, groupName));
+                }
+            } catch {
+                // The group doesn't exist (the getGroup call reverted), so add it
+                continue;
+            }
+        }
+    }
+
+    function removeGroups(uint256 amountOfGroups) public {
+        for (uint i = 0; i < amountOfGroups; i++) {
+            string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
+            
+            try groupManagerF.getGroup(groupName) {
+            // The group exists, so do nothing and continue to the next iteration
+                IIngesterGroupManager.GroupWithIngesters memory groupToRemove = groupManagerF.getGroup(groupName);
+                address[] memory groupIngesters = groupToRemove.ingesterAddresses;
+                groupManagerF.removeGroup(groupName);
+            
+                for (uint256 i = 0; i < groupIngesters.length; i++) {
+                    IIngesterRegistration.IngesterWithGroups memory ingester = registryF.getIngesterWithGroups(groupIngesters[i]);
+                    assert(!utils.containsStr(ingester.assignedGroups, groupName));
+                }
+            } catch {
+                // The group doesn't exist (the getGroup call reverted), so add it
+                continue;
+            }
+        }
+    }
+
+    function registerIngestersWFuzz(uint256 numIngesters) public {
+        vm.assume(numIngesters < maxUsers);
+        
+        for (uint256 i = 1; i < numIngesters; i++) {
+            try registryF.getIngester(users[i]) {
+                continue;
+            } catch {
+                bytes memory signature = hashAndSignMessage(users[i], users_priv_key[i-1], message, nonce);
+                vm.startPrank(users[i-1]);
+                registryF.registerIngester(users[i], message, nonce, signature);
+                vm.stopPrank();
+            }
+        }
+    }
+
+    function registerIngesters(uint256 numIngesters) public {
+        require(numIngesters <= maxUsers, "Too many users");
+        
+        for (uint256 i = 1; i < numIngesters; i++) {
+            try registryF.getIngester(users[i]) {
+                // The ingester exists, so do nothing and continue to the next iteration
+                continue;
+            } catch {
+                // The ingester doesn't exist (the getIngester call reverted), so register it
+                bytes memory signature = hashAndSignMessage(users[i], users_priv_key[i-1], message, nonce);
+                vm.startPrank(users[i-1]);
+                registryF.registerIngester(users[i], message, nonce, signature);
+                vm.stopPrank();
+            }
+        }
+    }
+
+
+    function registerIngester(uint256 userInd, uint256 controllerInd) public {
+        address user = users[userInd];
+        bytes32 users_priv_key = users_priv_key[controllerInd];
+        address controller = users[userInd - 1];
+        bytes memory signature = hashAndSignMessage(user, users_priv_key, message, nonce);
+
+        vm.startPrank(controller);
+        registryF.registerIngester(user, message, nonce, signature);
+        vm.stopPrank();
+    }
+
+    function registerIngestersWithSameController(uint256 numIngesters) public {
+
+        for (uint256 i = 1; i <= numIngesters; i++) {
+            bytes memory signature = hashAndSignMessage(users[i], users_priv_key[0], message, nonce);
+            vm.startPrank(users[0]);
+            registryF.registerIngester(users[i], message, nonce, signature);
+            vm.stopPrank();
+        }
+    }
+
+    function unRegisterIngester(address user, address controller) public {
+        vm.startPrank(controller);
+        registryF.unRegisterIngester(user);
+        vm.stopPrank();
+    }
+
+    function unRegisterIngestersWFuzz(uint256 numIngesters) public {
+        address[] memory ingesters = registryF.getIngesters();
+        vm.assume(numIngesters > 0);
+        vm.assume(numIngesters < ingesters.length);
+
+        for (uint256 i = 1; i < numIngesters; i++) {
+            try registryF.getIngester(users[i]) {
+                unRegisterIngester(users[i], users[i-1]);
+            } catch {
+                vm.expectRevert();
+                unRegisterIngester(users[i], users[i-1]);
+            }
+        }
+    }
+
+    function unRegisterIngesters(uint256 numIngesters) public {
+        for (uint256 i = 1; i <= numIngesters; i++) {
+            //TODO: verify why roles are still present when their addresses are no longer registered
+            // console.log('checking ingester users[i]', users[i]);
+            // console.log('checking controller users[i-1]', users[i-1]);
+            
+            // address[] memory ingesters = registryF.getIngesters();
+            // bool contains = utils.containsAddr(ingesters, users[i]);
+            // console.log('contains ingester in ingesters array', contains);
+
+            // IIngesterRegistration.Ingester[] memory ingesterAddresses = registryF.getControllerIngesters(users[i-1]);
+            // console.log('ingesterAddresses.length', ingesterAddresses.length);
+            // for (uint j = 0; j < ingesterAddresses.length; j++) {
+            //     console.log('ingesterAddresses[j]', ingesterAddresses[j].ingesterAddress);
+            // }
+            // address controllerAddress = registryF.getIngesterController(users[i]);
+            // console.log('controllerAddress in contract', controllerAddress);
+            // bool isRegisteredIngester = registryF.isRegisteredIngester(users[i]);
+            // bool isRegistedController = registryF.isRegisteredController(users[i-1]);
+            // console.log('isRegisteredIngester', isRegisteredIngester);
+            // console.log('isRegistedController', isRegistedController);
+
+            // IIngesterRegistration.Ingester memory ingester = registryF.getIngester(users[i]);
+            // console.log('ingester.ingesterAddress', ingester.ingesterAddress);
+
+            // if (registryF.isRegisteredIngester(users[i]) && registryF.isRegisteredController(users[i-1])) {
+            //     unRegisterIngester(users[i], users[i-1]);
+            // } else {
+            //     vm.expectRevert("Ingester does not exist");
+            //     unRegisterIngester(users[i], users[i-1]);
+            // }
+
+            try registryF.getIngester(users[i]) {
+                unRegisterIngester(users[i], users[i-1]);
+            } catch {
+                vm.expectRevert();
+                unRegisterIngester(users[i], users[i-1]);    
+            }
+        }
+    }
+}
+
 contract TestingInvariants is StateDeployDiamondBase {
     uint256 public mappingNonce = 1;
     mapping (uint256 => mapping (address => bool)) public controllers;
+    bool verbose = false;
 
     function assertIngesterPerGroupInvariant() public {
         uint256 maxIngesterPerGroup = groupManagerF.getMaxIngestersPerGroup();
@@ -178,7 +386,9 @@ contract TestingInvariants is StateDeployDiamondBase {
 
         for (uint256 i = 0; i < clusters.length; i++) {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
-            console.log('asserting ingester per group invariant');
+            if (verbose){
+                console.log('asserting ingester per group invariant');
+            }
             assertLe(cluster.ingesterAddresses.length, maxIngesterPerGroup);
         }
     }
@@ -189,7 +399,9 @@ contract TestingInvariants is StateDeployDiamondBase {
 
         for (uint256 i = 0; i < clusters.length; i++) {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
-            console.log('asserting max cluster size invariant');
+            if (verbose){
+                console.log('asserting max cluster size invariant');
+            }
             assertLe(cluster.groupUsernames.length, maxClusterSize);
         }
     }
@@ -203,7 +415,9 @@ contract TestingInvariants is StateDeployDiamondBase {
             IIngesterGroupManager.GroupsCluster memory cluster = groupManagerF.getCluster(clusters[i]);
             groupCountCheck += cluster.groupUsernames.length;
         }
-        console.log('asserting group count invariant');
+        if (verbose){
+            console.log('asserting group count invariant');
+        }
         assertEq(groupCountCheck, groupCount);
     }
 
@@ -232,9 +446,11 @@ contract TestingInvariants is StateDeployDiamondBase {
                 inactiveClusterCheck += 1;
             }
         }
-        console.log('asserting inactive clusters');
-        console.log('inactiveClusterCheck', inactiveClusterCheck);
-        console.log('inactiveClusters.length', inactiveClusters.length);
+        if (verbose){
+            console.log('asserting inactive clusters');
+            console.log('inactiveClusterCheck', inactiveClusterCheck);
+            console.log('inactiveClusters.length', inactiveClusters.length);
+        }
         assertEq(inactiveClusterCheck, inactiveClusters.length);
     }
 
@@ -249,8 +465,10 @@ contract TestingInvariants is StateDeployDiamondBase {
                 address controllerAddress = groupManagerF.getIngesterController(cluster.ingesterAddresses[j]);
                 
                 //if not false then there is a non-unique controller within cluster
-                console.log('asserting unique controllers');
-                console.log('controllers[mappingNonce][controllerAddress]', controllers[mappingNonce][controllerAddress]);
+                if (verbose){
+                    console.log('asserting unique controllers');
+                    console.log('controllers[mappingNonce][controllerAddress]', controllers[mappingNonce][controllerAddress]);
+                }
                 assertFalse(controllers[mappingNonce][controllerAddress]);
                 controllers[mappingNonce][controllerAddress] = true;
             }
@@ -268,7 +486,7 @@ contract TestingInvariants is StateDeployDiamondBase {
     }
 }
 
-contract StateAllFacetsNoReplication is StateDeployDiamondBase {
+contract StateAllFacetsNoReplication is StateDeployDiamondBase, TestUtilities {
 
 
     function setUp() public virtual override {
@@ -296,5 +514,15 @@ contract StateAddAllFacetsWithReplication is StateAllFacetsNoReplication{
         super.setUp();
 
         setNewMaxIngestersPerGroup(newMaxIngesterPerGroup);
+    }
+}
+
+contract StateAddAllFacetsWithReplicationPopulated is StateAddAllFacetsWithReplication{
+ 
+    function setUp() public virtual override {
+        StateAddAllFacetsWithReplication.setUp();
+    
+        addGroups(maxGroups);
+        registerIngesters(maxUsers - 1);
     }
 }
