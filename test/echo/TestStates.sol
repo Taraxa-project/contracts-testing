@@ -421,6 +421,27 @@ contract TestingInvariants is StateDeployDiamondBase {
         assertEq(groupCountCheck, groupCount);
     }
 
+    function assertIngesterRoleCount() public {
+        uint256 ingesterCount = groupManagerF.getIngesterCount();
+        uint256 ingesterCountCheck = 0;
+        uint256 controllerCountCheck = 0;
+
+        for (uint256 i = 1; i < users.length; i++) {
+            bool isRegisteredIngester = registryF.isRegisteredIngester(users[i]);
+            bool isRegisteredController = registryF.isRegisteredController(vm.addr(uint256(users_priv_key[i-1])));
+
+            if (isRegisteredIngester) {
+                ingesterCountCheck += 1;
+            }
+            if (isRegisteredController) {
+                controllerCountCheck += 1;
+            }
+        }
+
+        assertEq(ingesterCountCheck, ingesterCount);
+        assertLe(controllerCountCheck, ingesterCount);
+    }
+
     function assertIngesterCountInvariant() public {
         uint256 ingesterCount = groupManagerF.getIngesterCount();
         uint256[] memory clusters = groupManagerF.getClusters();
@@ -483,6 +504,7 @@ contract TestingInvariants is StateDeployDiamondBase {
         assertIngesterCountInvariant();
         assertInactiveClusterCountInvariant();
         assertUniqueControllerInClusterInvariant();
+        assertIngesterRoleCount();
     }
 }
 

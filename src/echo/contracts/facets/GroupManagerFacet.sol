@@ -145,7 +145,7 @@ contract GroupManagerFacet is AccessControlFacet, CommonFunctionsFacet, IIngeste
     * @return uint256 The ID of the available cluster.
     * @return bool A boolean value indicating if an available cluster was found.
     */
-    function getAvailableClusterForGroups() internal returns(uint256, bool) {
+    function getAvailableClusterForGroups() internal view returns(uint256, bool) {
         uint256 availableClusterId = 0;
         bool foundAvailableCluster = false;
 

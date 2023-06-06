@@ -335,7 +335,7 @@ contract TestWithReplicationPopulated is StateAddAllFacetsWithReplicationPopulat
         StateAddAllFacetsWithReplicationPopulated.setUp();
     }
 
-    function testRandomOrderCallsPopulated(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
+    function testRandomOrderCallsPrePopulated(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
         vm.assume(numCalls > 0);
         vm.assume(numCalls < 100);
         vm.assume(numIngesters < maxUsers);
