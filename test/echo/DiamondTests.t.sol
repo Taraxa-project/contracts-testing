@@ -22,20 +22,15 @@ import "forge-std/Test.sol";
 
 import "./TestStates.sol";
 import "../utils/Utils.sol";
-
-// Import OpenZeppelin's Strings library
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-
 contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
-    // string message = "test";
-    // uint256 nonce = 999;
 
     function setUp() public virtual override(StateAllFacetsNoReplication, StateDeployDiamondBase) {
         StateAllFacetsNoReplication.setUp();
     }
 
-    function testAddGroup(string memory groupUsername) public {
+    function test_AddGroup(string memory groupUsername) public {
         vm.assume(bytes(groupUsername).length != 0);
         groupManagerF.addGroup(groupUsername);
         IIngesterGroupManager.GroupWithIngesters memory group = groupManagerF.getGroup(groupUsername);
@@ -45,7 +40,7 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
     }
 
 
-    function testRemoveGroup(string memory groupUsername) public {
+    function test_RemoveGroup(string memory groupUsername) public {
         vm.assume(bytes(groupUsername).length != 0);
         groupManagerF.addGroup(groupUsername);
         groupManagerF.removeGroup(groupUsername);
@@ -56,7 +51,7 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
     }
 
 
-    function testAddAndRemoveAllGroups(uint256 numGroups) public {
+    function test_AddAndRemoveAllGroups(uint256 numGroups) public {
         vm.assume(numGroups > 0);
         vm.assume(numGroups < 200);
         for (uint i = 0; i < numGroups; i++) {
@@ -72,7 +67,7 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
         assertAllInvariants();
     }
 
-    function testAddAndRemoveRandomGroups() public {
+    function test_AddAndRemoveSampledGroups() public {
         uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty)))%50;
         
         for (uint i = 0; i < randomNumber; i++) {
@@ -89,7 +84,7 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
     }
 
 
-    function testCreateNewClusters() public {
+    function test_CreateNewClusters() public {
         uint256 maxClusterSize = groupManagerF.getMaxClusterSize();
         uint256 amountOfGroups = maxClusterSize * 3;
 
@@ -102,8 +97,7 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
         assertAllInvariants();
     }
 
-    //function to add groups to create 3 clusters and then add 3 ingesters and check that the groups were properly distributed 
-    function testGroupDistributionToIngesters() public {
+    function test_GroupDistributionToIngesters() public {
         
         uint256 maxClusterSize = groupManagerF.getMaxClusterSize();
         uint256 amountOfGroups = maxClusterSize * 3;
@@ -135,17 +129,15 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
         assertAllInvariants();
     }
 
-    function testRandomOrderCalls(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
+    function testFuzz_RandomOrderCalls(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
         vm.assume(numCalls > 0);
         vm.assume(numCalls < 250);
         vm.assume(numIngesters < maxUsers);
         vm.assume(groupNum < maxGroups);
 
         for (uint256 i = 0; i < numCalls; i++) {
-            // Generate a random function index
             uint256 functionIndex = uint256(keccak256(abi.encodePacked(i))) % 4;
 
-            // Call the chosen function with random inputs
             if (functionIndex == 0) {
                 addGroupsWFuzz(groupNum);
             } else if (functionIndex == 1) {
@@ -163,7 +155,6 @@ contract TestGroups is StateAllFacetsNoReplication, TestingInvariants {
                 }
             }
 
-            // Assert invariants after each call
             assertAllInvariants();
         }
     }
@@ -177,17 +168,17 @@ contract TestGroupsWithReplication is StateAddAllFacetsWithReplication, TestingI
         StateAddAllFacetsWithReplication.setUp();
     }
 
-    function testAddingAndRemoveAllGroupsWithReplication(uint256 numGroups) public {
+    function testFuzz_AddingAndRemoveAllGroupsWithReplication(uint256 numGroups) public {
         vm.assume(numGroups > 0);
         vm.assume(numGroups < maxGroups);
 
-        addGroups(numGroups);
-        removeGroups(numGroups);
+        addGroupsWFuzz(numGroups);
+        removeGroupsWFuzz(numGroups);
      
         assertAllInvariants();
     }
 
-    function testAddIngestersWithReplication(uint256 numIngesters, uint256 numGroups) public {
+    function test_AddIngestersWithReplication(uint256 numIngesters, uint256 numGroups) public {
         vm.assume(numIngesters > 0);
         vm.assume(numIngesters < maxUsers);
         vm.assume(numGroups > 0);
@@ -196,7 +187,6 @@ contract TestGroupsWithReplication is StateAddAllFacetsWithReplication, TestingI
         addGroups(numGroups);
 
         uint256 maxClusterSize = groupManagerF.getMaxClusterSize();
-        uint256 numClusters = registryF.getClusterCount();
 
         for (uint256 i = 1; i <= numIngesters; i++) {
             registerIngester(i, i-1);
@@ -230,27 +220,20 @@ contract TestGroupsWithReplication is StateAddAllFacetsWithReplication, TestingI
         assertAllInvariants();
     }
 
-    function testAddAndRemoveIngestersWithReplication(uint256 numIngesters, uint256 numGroups) public {
+    function testFuzz_AddAndRemoveIngestersWithReplication(uint256 numIngesters, uint256 numGroups) public {
         vm.assume(numIngesters > 0);
         vm.assume(numIngesters < maxUsers);
         vm.assume(numGroups > 0);
         vm.assume(numGroups < maxGroups);
 
-        addGroups(numGroups);
-
-        for (uint256 i = 1; i <= numIngesters; i++) {
-            bytes memory signature = hashAndSignMessage(users[i], users_priv_key[i-1], message, nonce);
-
-            vm.startPrank(users[i-1]);
-            registryF.registerIngester(users[i], message, nonce, signature);
-            vm.stopPrank();
-
-        }
+        addGroupsWFuzz(numGroups);
+        registerIngestersWFuzz(numIngesters);
         unRegisterIngesters(numIngesters);
 
+        assertAllInvariants();
     }
 
-    function testRemovingAllIngestersFromClusterWReplication(uint256 numGroups) public {
+    function test_RemovingAllIngestersFromClusterWReplication(uint256 numGroups) public {
         vm.assume(numGroups > 0);
         vm.assume(numGroups < maxGroups);
         addGroups(numGroups);
@@ -282,7 +265,7 @@ contract TestGroupsWithReplication is StateAddAllFacetsWithReplication, TestingI
         assertAllInvariants();
     }
 
-    function testControllerWalletWithinClusterRestriction(uint256 numGroups, uint256 numIngesters) public {
+    function test_ControllerWalletWithinClusterRestriction(uint256 numGroups, uint256 numIngesters) public {
         vm.assume(numIngesters > 0);
         vm.assume(numGroups > 0);
         vm.assume(numIngesters < maxUsers);
@@ -294,17 +277,15 @@ contract TestGroupsWithReplication is StateAddAllFacetsWithReplication, TestingI
         assertAllInvariants();
     }
 
-     function testRandomOrderCalls(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
+     function testFuzz_RandomOrderCalls(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
         vm.assume(numCalls > 0);
         vm.assume(numCalls < 100);
         vm.assume(numIngesters < maxUsers);
         vm.assume(groupNum < maxGroups);
 
         for (uint256 i = 0; i < numCalls; i++) {
-            // Generate a random function index
             uint256 functionIndex = uint256(keccak256(abi.encodePacked(i))) % 4;
 
-            // Call the chosen function with random inputs
             if (functionIndex == 0) {
                 addGroupsWFuzz(groupNum);
             } else if (functionIndex == 1) {
@@ -321,7 +302,6 @@ contract TestGroupsWithReplication is StateAddAllFacetsWithReplication, TestingI
                 }
             }
 
-            // Assert invariants after each call
             assertAllInvariants();
         }
     }
@@ -335,17 +315,15 @@ contract TestWithReplicationPopulated is StateAddAllFacetsWithReplicationPopulat
         StateAddAllFacetsWithReplicationPopulated.setUp();
     }
 
-    function testRandomOrderCallsPrePopulated(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
+    function testFuzz_RandomOrderCallsPrePopulated(uint256 numCalls, uint256 numIngesters, uint256 groupNum) public {
         vm.assume(numCalls > 0);
         vm.assume(numCalls < 100);
         vm.assume(numIngesters < maxUsers);
         vm.assume(groupNum < maxGroups);
 
         for (uint256 i = 0; i < numCalls; i++) {
-            // Generate a random function index
             uint256 functionIndex = uint256(keccak256(abi.encodePacked(i))) % 4;
 
-            // Call the chosen function with random inputs
             if (functionIndex == 0) {
                 addGroupsWFuzz(groupNum);
             } else if (functionIndex == 1) {
@@ -362,22 +340,19 @@ contract TestWithReplicationPopulated is StateAddAllFacetsWithReplicationPopulat
                 }
             }
 
-            // Assert invariants after each call
             assertAllInvariants();
         }
     }
 
-    function testRandomRemoveIngesterAndGroupsPrePopulated(uint256 numCalls, uint256 numIngesters, uint256 numGroups) public {
+    function testFuzz_RandomRemoveIngesterAndGroupsPrePopulated(uint256 numCalls, uint256 numIngesters, uint256 numGroups) public {
         vm.assume(numCalls > 0);
         vm.assume(numCalls < 100);
         vm.assume(numIngesters < maxUsers);
         vm.assume(numGroups < maxGroups);
 
         for (uint256 i = 0; i < numCalls; i++) {
-            // Generate a random function index
             uint256 functionIndex = uint256(keccak256(abi.encodePacked(i))) % 2;
 
-            // Call the chosen function with random inputs
             if (functionIndex == 0) {
                 address[] memory ingesters = registryF.getIngesters();
                 if (ingesters.length > 0) {

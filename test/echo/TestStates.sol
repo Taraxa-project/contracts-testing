@@ -181,10 +181,8 @@ contract TestUtilities is StateDeployDiamondBase{
         for (uint i = 0; i < amountOfGroups; i++) {
             string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
             try groupManagerF.getGroup(groupName) {
-            // The group exists, so do nothing and continue to the next iteration
                 continue;
             } catch {
-                // The group doesn't exist (the getGroup call reverted), so add it
                 groupManagerF.addGroup(groupName);
             }
         }
@@ -194,10 +192,8 @@ contract TestUtilities is StateDeployDiamondBase{
         for (uint i = 0; i < amountOfGroups; i++) {
             string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
             try groupManagerF.getGroup(groupName) {
-            // The group exists, so do nothing and continue to the next iteration
                 continue;
             } catch {
-                // The group doesn't exist (the getGroup call reverted), so add it
                 groupManagerF.addGroup(groupName);
             }
         }
@@ -221,7 +217,6 @@ contract TestUtilities is StateDeployDiamondBase{
             string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
             
             try groupManagerF.getGroup(groupName) {
-            // The group exists, so do nothing and continue to the next iteration
                 IIngesterGroupManager.GroupWithIngesters memory groupToRemove = groupManagerF.getGroup(groupName);
                 address[] memory groupIngesters = groupToRemove.ingesterAddresses;
                 groupManagerF.removeGroup(groupName);
@@ -231,7 +226,6 @@ contract TestUtilities is StateDeployDiamondBase{
                     assert(!utils.containsStr(ingester.assignedGroups, groupName));
                 }
             } catch {
-                // The group doesn't exist (the getGroup call reverted), so add it
                 continue;
             }
         }
@@ -242,7 +236,6 @@ contract TestUtilities is StateDeployDiamondBase{
             string memory groupName = string(abi.encodePacked("group", Strings.toString(i)));
             
             try groupManagerF.getGroup(groupName) {
-            // The group exists, so do nothing and continue to the next iteration
                 IIngesterGroupManager.GroupWithIngesters memory groupToRemove = groupManagerF.getGroup(groupName);
                 address[] memory groupIngesters = groupToRemove.ingesterAddresses;
                 groupManagerF.removeGroup(groupName);
@@ -252,7 +245,6 @@ contract TestUtilities is StateDeployDiamondBase{
                     assert(!utils.containsStr(ingester.assignedGroups, groupName));
                 }
             } catch {
-                // The group doesn't exist (the getGroup call reverted), so add it
                 continue;
             }
         }
@@ -278,10 +270,8 @@ contract TestUtilities is StateDeployDiamondBase{
         
         for (uint256 i = 1; i < numIngesters; i++) {
             try registryF.getIngester(users[i]) {
-                // The ingester exists, so do nothing and continue to the next iteration
                 continue;
             } catch {
-                // The ingester doesn't exist (the getIngester call reverted), so register it
                 bytes memory signature = hashAndSignMessage(users[i], users_priv_key[i-1], message, nonce);
                 vm.startPrank(users[i-1]);
                 registryF.registerIngester(users[i], message, nonce, signature);
@@ -335,36 +325,6 @@ contract TestUtilities is StateDeployDiamondBase{
 
     function unRegisterIngesters(uint256 numIngesters) public {
         for (uint256 i = 1; i <= numIngesters; i++) {
-            //TODO: verify why roles are still present when their addresses are no longer registered
-            // console.log('checking ingester users[i]', users[i]);
-            // console.log('checking controller users[i-1]', users[i-1]);
-            
-            // address[] memory ingesters = registryF.getIngesters();
-            // bool contains = utils.containsAddr(ingesters, users[i]);
-            // console.log('contains ingester in ingesters array', contains);
-
-            // IIngesterRegistration.Ingester[] memory ingesterAddresses = registryF.getControllerIngesters(users[i-1]);
-            // console.log('ingesterAddresses.length', ingesterAddresses.length);
-            // for (uint j = 0; j < ingesterAddresses.length; j++) {
-            //     console.log('ingesterAddresses[j]', ingesterAddresses[j].ingesterAddress);
-            // }
-            // address controllerAddress = registryF.getIngesterController(users[i]);
-            // console.log('controllerAddress in contract', controllerAddress);
-            // bool isRegisteredIngester = registryF.isRegisteredIngester(users[i]);
-            // bool isRegistedController = registryF.isRegisteredController(users[i-1]);
-            // console.log('isRegisteredIngester', isRegisteredIngester);
-            // console.log('isRegistedController', isRegistedController);
-
-            // IIngesterRegistration.Ingester memory ingester = registryF.getIngester(users[i]);
-            // console.log('ingester.ingesterAddress', ingester.ingesterAddress);
-
-            // if (registryF.isRegisteredIngester(users[i]) && registryF.isRegisteredController(users[i-1])) {
-            //     unRegisterIngester(users[i], users[i-1]);
-            // } else {
-            //     vm.expectRevert("Ingester does not exist");
-            //     unRegisterIngester(users[i], users[i-1]);
-            // }
-
             try registryF.getIngester(users[i]) {
                 unRegisterIngester(users[i], users[i-1]);
             } catch {
