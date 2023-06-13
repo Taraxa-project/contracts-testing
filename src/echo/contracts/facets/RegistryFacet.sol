@@ -6,7 +6,6 @@ import "../interfaces/IIngesterRegistration.sol";
 import "@solidstate/contracts/cryptography/ECDSA.sol";
 import "./AccessControlFacet.sol";
 import "./CommonFunctionsFacet.sol";
-import "forge-std/console.sol";
 
 contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunctionsFacet {
 
@@ -120,6 +119,10 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
         emit IIngesterRegistration.IngesterUnRegistered(controllerAddress, ingesterAddress);
     }  
 
+    /**
+     * @notice Removes an unallocated ingester from the ingester addresses.
+     * @param ingesterAddress The address of the ingester to be removed.
+     */
     function removeUnallocatedIngester(address ingesterAddress) internal {
         for (uint256 i = 0; i < s.unallocatedIngesters.length; i++) {
             if (s.unallocatedIngesters[i] == ingesterAddress) {
@@ -132,7 +135,10 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
         }
     }
 
-
+    /**
+     * @notice Removes an ingester from the ingester addresses array.
+     * @param ingesterAddressesIndexToRemove The index of the ingester address to be removed.
+     */
     function removeIngesterFromIngesterAddresses(uint256 ingesterAddressesIndexToRemove) internal {
         uint256 ingesterCount = s.ingesterAddresses.length;
         if (ingesterAddressesIndexToRemove != ingesterCount - 1) {
@@ -143,6 +149,11 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
         s.ingesterAddresses.pop();
     } 
 
+    /**
+     * @notice Removes an ingester from the controller's mapping.
+     * @param ingesterIndexToRemove The index of the ingester to be removed.
+     * @param controllerAddress The address of the controller.
+     */
     function removeIngesterFromControllerMapping(uint256 ingesterIndexToRemove, address controllerAddress) internal {
         uint numIngestersPerController = s.controllerToIngesters[controllerAddress].length;
         if (ingesterIndexToRemove != numIngestersPerController - 1) {
@@ -153,6 +164,10 @@ contract RegistryFacet is IIngesterRegistration, AccessControlFacet, CommonFunct
         s.controllerToIngesters[controllerAddress].pop();
     }
 
+    /**
+     * @notice Removes an ingester from the ingester mapping.
+     * @param ingesterAddress The address of the ingester to be removed.
+     */
     function removeIngesterFromIngesterMapping(address ingesterAddress) internal {
         _revokeRole(LibAppStorage._INGESTER_ROLE, ingesterAddress);
         delete s.ingesterToController[ingesterAddress];
